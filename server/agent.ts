@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { SYSTEM_PROMPT } from './prompt';
 
 /** Read-only tool set: the agent answers questions and never edits. */
@@ -9,7 +11,21 @@ const ALLOWED = [
   'Read', 'Grep', 'Glob',
   'Bash(git log *)', 'Bash(git show *)', 'Bash(git diff *)', 'Bash(git blame *)', 'Bash(git status *)',
   'Bash(git log)', 'Bash(git diff)', 'Bash(git status)',
+  'Bash(grillai-sheet *)',
 ].join(',');
+
+/**
+ * Read-only helper commands for the agent (grillai-sheet), put on its PATH.
+ * The folder sits at the package root: one level up from server/ when run
+ * from source, two levels up from dist/server/ when built.
+ */
+function toolsDir(): string | null {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  for (const dir of [path.join(here, '..', 'tools'), path.join(here, '..', '..', 'tools')]) {
+    if (existsSync(path.join(dir, 'grillai-sheet'))) return dir;
+  }
+  return null;
+}
 
 /** Claude Opus 5.5 answers questions unless GRILLAI_MODEL says otherwise. */
 export const DEFAULT_MODEL = 'claude-opus-5-5';
@@ -67,8 +83,10 @@ export function runClaude(opts: AgentOptions): AgentRun {
   args.push('--model', process.env.GRILLAI_MODEL || DEFAULT_MODEL);
   if (opts.resume) args.push('--resume', opts.resume);
 
+  const tools = toolsDir();
   const child = spawn(process.env.GRILLAI_CLAUDE_BIN ?? 'claude', args, {
     cwd: opts.cwd,
+    env: tools ? { ...process.env, PATH: `${tools}${path.delimiter}${process.env.PATH ?? ''}` } : process.env,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   let killed = false;

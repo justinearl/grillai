@@ -39,6 +39,8 @@ The diff refreshes when you return to the browser tab, or with **Refresh**.
 
 Claude runs in the repository with read-only tools: reading and searching files, and `git log`, `show`, `diff`, `blame` and `status`. It cannot edit files or run other commands.
 
+It can also read Excel files (`.xlsx`), including ones on a branch that is not checked out, through a small bundled reader (`tools/grillai-sheet`).
+
 ## Data
 
 Threads and viewed marks are stored in `~/.local/share/grillai/grillai.db` (or `$XDG_DATA_HOME/grillai`), keyed by repository path and the pair of refs. Nothing is written into the repositories you review.

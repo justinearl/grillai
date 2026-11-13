@@ -1,6 +1,7 @@
 import { flatten } from '../shared/anchor';
 import { expandFile, expandable } from '../shared/expand';
 import { WORKTREE, type DiffFile, type DiffLine, type Severity } from '../shared/types';
+import { TOOL_NOTES } from './prompt';
 
 export const REVIEW_SYSTEM_PROMPT = `You are the code reviewer inside grillai, a local code review tool. You review a whole set of changes, usually written by another AI agent, on behalf of a human who will read your findings next to the diff and pass them on to the agent that does the fixes.
 
@@ -16,6 +17,9 @@ How to report:
 - severity: "high" for bugs, security problems or data loss; "medium" for likely problems and missing handling; "low" for minor improvements.
 - title: one line naming the problem. body: Markdown saying what is wrong, why it matters, and what should change. Refer to other code as path:line.
 - summary: a few sentences in Markdown on what the change does and your overall verdict.
+
+What you can run:
+${TOOL_NOTES}
 
 You are read-only. Do not modify, create or delete files.`;
 

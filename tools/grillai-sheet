@@ -1,0 +1,3 @@
+#!/bin/sh
+# Prints an Excel file as text. See sheet.mjs.
+exec node "$(dirname "$0")/sheet.mjs" "$@"

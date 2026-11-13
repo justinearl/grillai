@@ -29,6 +29,8 @@ export class Store {
       file = path.join(dataDir(), 'grillai.db');
     }
     this.db = new DatabaseSync(file);
+    // Several grillais (one per repo) share this file: wait for each other's writes instead of failing.
+    this.db.exec('PRAGMA busy_timeout = 5000');
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;

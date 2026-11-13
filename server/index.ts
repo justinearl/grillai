@@ -8,6 +8,7 @@ import { runClaude, type AgentRun } from './agent';
 import { openBrowser } from './browser';
 import { Store, type ReviewRow } from './db';
 import { GitError, fileLines, getDiff, repoInfo, resolveRepo } from './git';
+import { PORT_SPAN, findInstance, listenOnFirstFree, portsFrom } from './instance';
 import { fullPrompt } from './prompt';
 import { REVIEW_SCHEMA, REVIEW_SYSTEM_PROMPT, findFile, inDiff, parseReview, placeFinding, reviewPrompt } from './review';
 
@@ -17,19 +18,26 @@ class HttpError extends Error {
   }
 }
 
+const DEFAULT_PORT = 4477;
+
 function parseArgs(argv: string[]) {
   let repo = process.env.GRILLAI_REPO ?? process.cwd();
-  let port = Number(process.env.GRILLAI_PORT ?? 4477);
+  let port = Number(process.env.GRILLAI_PORT ?? DEFAULT_PORT);
+  // A port the user asked for is used as given; otherwise grillai moves up to the next free one.
+  let fixedPort = process.env.GRILLAI_PORT != null;
   let open = !['0', 'false', 'no'].includes((process.env.GRILLAI_OPEN ?? '').toLowerCase());
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--port' || argv[i] === '-p') port = Number(argv[++i]);
+    if (argv[i] === '--port' || argv[i] === '-p') {
+      port = Number(argv[++i]);
+      fixedPort = true;
+    } else if (argv[i] === '--strict-port') fixedPort = true;
     else if (argv[i] === '--no-open') open = false;
     else if (argv[i] === '--help' || argv[i] === '-h') {
-      console.log('Usage: grillai [path-to-repo] [--port 4477] [--no-open]');
+      console.log(`Usage: grillai [path-to-repo] [--port ${DEFAULT_PORT}] [--no-open]`);
       process.exit(0);
     } else if (!argv[i].startsWith('-')) repo = argv[i];
   }
-  return { repo: path.resolve(repo), port, open };
+  return { repo: path.resolve(repo), port, fixedPort, open };
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -39,6 +47,18 @@ try {
 } catch (err) {
   console.error((err as Error).message);
   process.exit(1);
+}
+
+// One grillai per repo: a second start in the same repo goes to the one already running.
+if (!args.fixedPort) {
+  const running = await findInstance(repo, portsFrom(args.port));
+  if (running != null) {
+    const url = `http://localhost:${running}`;
+    console.log(`grillai is already reviewing ${repo}`);
+    console.log(`Open ${url}`);
+    if (args.open) openBrowser(url);
+    process.exit(0);
+  }
 }
 
 const store = new Store();
@@ -365,15 +385,19 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: err.message });
 });
 
-const server = app.listen(args.port, '127.0.0.1', () => {
+try {
+  const { port } = await listenOnFirstFree(app, args.fixedPort ? [args.port] : portsFrom(args.port));
+  const url = `http://localhost:${port}`;
   console.log(`grillai is reviewing ${repo}`);
-  console.log(webDir ? `Open http://localhost:${args.port}` : `API on http://localhost:${args.port} (web UI is served by vite in dev)`);
-  if (webDir && args.open) openBrowser(`http://localhost:${args.port}`);
-});
-server.on('error', (err: NodeJS.ErrnoException) => {
-  console.error(err.code === 'EADDRINUSE' ? `Port ${args.port} is in use. Pick another with --port.` : err.message);
+  console.log(webDir ? `Open ${url}` : `API on ${url} (web UI is served by vite in dev)`);
+  if (webDir && args.open) openBrowser(url);
+} catch (err) {
+  const e = err as NodeJS.ErrnoException;
+  if (e.code !== 'EADDRINUSE') console.error(e.message);
+  else if (args.fixedPort) console.error(`Port ${args.port} is in use. Pick another with --port.`);
+  else console.error(`Ports ${args.port} to ${args.port + PORT_SPAN - 1} are all in use. Pick another with --port.`);
   process.exit(1);
-});
+}
 
 const shutdown = () => {
   for (const l of live.values()) l.run?.kill();

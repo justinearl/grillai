@@ -25,6 +25,8 @@ grillai                 # or: node /path/to/grillai/bin/grillai.mjs [repo] [--po
 
 grillai opens http://localhost:4477 in your default browser. Under WSL that is your Windows browser. Pass `--no-open` to skip it.
 
+You can review several repositories at once: run `grillai` in each. The first one uses port 4477, the next 4478, and so on, each in its own browser tab. Running `grillai` again in a repository that is already open just brings up its tab.
+
 1. Pick what to review in the top bar: a branch, or **Working tree (current state)**, which includes uncommitted and untracked files, against a base branch. The diff is taken from the merge base, like a GitLab merge request.
 2. Read the diff, inline or side-by-side. Between hunks, **Show hidden lines** (or the ↑/↓ 20 lines arrows) reveals the unchanged code around a change. Tick **Viewed** to collapse a file; the tick clears itself if the file's diff changes later.
 3. Start a thread: hover a line and click its number (the blue **+**), or drag across line numbers to select several lines. Shift-click extends the selection.
@@ -49,7 +51,7 @@ Threads and viewed marks are stored in `~/.local/share/grillai/grillai.db` (or `
 
 | Variable | Meaning |
 | --- | --- |
-| `GRILLAI_PORT` | Port (default 4477); same as `--port` |
+| `GRILLAI_PORT` | Port to use, exactly; same as `--port`. Without it grillai starts at 4477 and takes the next free port |
 | `GRILLAI_OPEN` | Set to `0` to not open the browser on start; same as `--no-open` |
 | `GRILLAI_MODEL` | Model passed to `claude --model` (default: `claude-opus-5-5`) |
 | `GRILLAI_CLAUDE_BIN` | Path to the `claude` binary |

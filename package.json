@@ -6,7 +6,7 @@
   "description": "Local GitLab-style review of AI-made changes, with Claude answering questions on any line",
   "bin": { "grillai": "bin/grillai.mjs" },
   "scripts": {
-    "dev": "concurrently -k -n server,web \"tsx watch server/index.ts\" \"vite\"",
+    "dev": "concurrently -k -n server,web \"tsx watch server/index.ts --no-open\" \"vite\"",
     "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server/index.mjs --log-level=warning",
     "start": "node bin/grillai.mjs",
     "test": "vitest run",

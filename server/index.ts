@@ -5,6 +5,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import { expandable } from '../shared/expand';
 import type { AiReviewState, DiffFile, DiffLine, ReviewPayload, Thread } from '../shared/types';
 import { runClaude, type AgentRun } from './agent';
+import { openBrowser } from './browser';
 import { Store, type ReviewRow } from './db';
 import { GitError, fileLines, getDiff, repoInfo, resolveRepo } from './git';
 import { fullPrompt } from './prompt';
@@ -19,14 +20,16 @@ class HttpError extends Error {
 function parseArgs(argv: string[]) {
   let repo = process.env.GRILLAI_REPO ?? process.cwd();
   let port = Number(process.env.GRILLAI_PORT ?? 4477);
+  let open = !['0', 'false', 'no'].includes((process.env.GRILLAI_OPEN ?? '').toLowerCase());
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--port' || argv[i] === '-p') port = Number(argv[++i]);
+    else if (argv[i] === '--no-open') open = false;
     else if (argv[i] === '--help' || argv[i] === '-h') {
-      console.log('Usage: grillai [path-to-repo] [--port 4477]');
+      console.log('Usage: grillai [path-to-repo] [--port 4477] [--no-open]');
       process.exit(0);
     } else if (!argv[i].startsWith('-')) repo = argv[i];
   }
-  return { repo: path.resolve(repo), port };
+  return { repo: path.resolve(repo), port, open };
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -365,6 +368,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 const server = app.listen(args.port, '127.0.0.1', () => {
   console.log(`grillai is reviewing ${repo}`);
   console.log(webDir ? `Open http://localhost:${args.port}` : `API on http://localhost:${args.port} (web UI is served by vite in dev)`);
+  if (webDir && args.open) openBrowser(`http://localhost:${args.port}`);
 });
 server.on('error', (err: NodeJS.ErrnoException) => {
   console.error(err.code === 'EADDRINUSE' ? `Port ${args.port} is in use. Pick another with --port.` : err.message);
